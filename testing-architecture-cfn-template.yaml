@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A YAML template file made by Ishaan Sharma.
+
+# Resources section
+Resources:
+  MyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0c614dee691cbbf37
+      InstanceType: t2.micro
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group made for the instance thru CFN.
+      GroupName: launch-wizard-cfn
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
