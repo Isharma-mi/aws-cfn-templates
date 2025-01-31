@@ -1,8 +1,40 @@
+# TODO: Setup conditions or parameters to prevent EC2 instances from being made thru console for faster testing of other features
+# TODO: Create a route table
 AWSTemplateFormatVersion: 2010-09-09
 Description: A YAML template file made by Ishaan Sharma.
 
 # Resources section
 Resources:
+  # TODO: Create a VPC and subnets
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: vpc-us-east-1-cfn-testing-stack
+  MyPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      # Gets the first AZ in the current region 
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: public-subnet-a
+  MyPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+        # Gets the first AZ in the current region (Same as public subnet)
+        AvailabilityZone: !Select [0, !GetAZs '']
+        CidrBlock: 10.0.16.0/20
+        VpcId: !Ref MyVPC
+        Tags:
+          - Key: Name
+            Value: private-subnet-a
+  # TODO: Create an ALB and target group (DO NOT add instances to target group)
+  # TODO: Create an ASG and associate it with the target group
   MyInstance:
     Type: AWS::EC2::Instance
     Properties:
@@ -10,6 +42,9 @@ Resources:
       InstanceType: t2.micro
       SecurityGroups: 
           - !Ref MySecurityGroup
+      Tags: 
+        - Key: Name 
+          Value: TestInstance
   MySecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
