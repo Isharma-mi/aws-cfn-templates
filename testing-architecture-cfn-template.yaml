@@ -1,7 +1,17 @@
-# TODO: Setup conditions or parameters to prevent EC2 instances from being made thru console for faster testing of other features
 # TODO: Create a route table
+# TODO: Setup instances within created VPC/subnets
 AWSTemplateFormatVersion: 2010-09-09
 Description: A YAML template file made by Ishaan Sharma.
+
+# Parameters section
+Parameters:
+  EC2InstanceCreation:
+    Description: Should EC2 instances and related components (SGs, etc.) be made?
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Default: false
 
 # Resources section
 Resources:
@@ -37,6 +47,7 @@ Resources:
   # TODO: Create an ASG and associate it with the target group
   MyInstance:
     Type: AWS::EC2::Instance
+    Condition: IsInstancesMade
     Properties:
       ImageId: ami-0c614dee691cbbf37
       InstanceType: t2.micro
@@ -47,6 +58,7 @@ Resources:
           Value: TestInstance
   MySecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Condition: IsInstancesMade
     Properties:
       GroupDescription: Security group made for the instance thru CFN.
       GroupName: launch-wizard-cfn
@@ -55,3 +67,7 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
+
+# Conditions section
+Conditions:
+    IsInstancesMade: !Equals [!Ref EC2InstanceCreation, true]
