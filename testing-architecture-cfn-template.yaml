@@ -1,4 +1,4 @@
-# TODO: Create a route table
+# TODO: Setup an IGW w/the public subnet
 # TODO: Setup instances within created VPC/subnets
 AWSTemplateFormatVersion: 2010-09-09
 Description: A YAML template file made by Ishaan Sharma.
@@ -15,7 +15,6 @@ Parameters:
 
 # Resources section
 Resources:
-  # TODO: Create a VPC and subnets
   MyVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -36,13 +35,38 @@ Resources:
   MyPrivateSubnet:
     Type: AWS::EC2::Subnet
     Properties:
-        # Gets the first AZ in the current region (Same as public subnet)
-        AvailabilityZone: !Select [0, !GetAZs '']
-        CidrBlock: 10.0.16.0/20
-        VpcId: !Ref MyVPC
-        Tags:
-          - Key: Name
-            Value: private-subnet-a
+      # Gets the first AZ in the current region (Same as public subnet)
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.16.0/20
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: private-subnet-a
+  MyPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: public-route-table
+  MyPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: private-route-table
+  # TODO: Add a IGW and route things to the public subnet
+  MyPrivateSubnetAssociatedWithPrivateRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPrivateRouteTable
+      SubnetId: !Ref MyPrivateSubnet
+  MyPublicSubnetAssociatedWithPublicRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublicRouteTable
+      SubnetId: !Ref MyPublicSubnet
   # TODO: Create an ALB and target group (DO NOT add instances to target group)
   # TODO: Create an ASG and associate it with the target group
   MyInstance:
