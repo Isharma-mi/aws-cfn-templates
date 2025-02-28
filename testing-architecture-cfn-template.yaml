@@ -1,5 +1,7 @@
 # TODO: Setup an IGW w/the public subnet
 # TODO: Setup instances within created VPC/subnets
+# TODO: Split file into multiple (Have one for networking, another for instances, etc.)
+# TODO: Have option to name resources thru parameters?
 AWSTemplateFormatVersion: 2010-09-09
 Description: A YAML template file made by Ishaan Sharma.
 
@@ -56,7 +58,12 @@ Resources:
       Tags:
         - Key: Name
           Value: private-route-table
-  # TODO: Add a IGW and route things to the public subnet
+  MyIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: igw-cfn-template
   MyPrivateSubnetAssociatedWithPrivateRouteTable:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -67,6 +74,25 @@ Resources:
     Properties:
       RouteTableId: !Ref MyPublicRouteTable
       SubnetId: !Ref MyPublicSubnet
+  MyIGWAssociatedWithVPC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref MyIGW
+      VpcId: !Ref MyVPC
+  # Creates a route for anyone connecting to the VPC to be directed thru the IGW to the public subnet
+  MyIGWRouteToPublicSubnet:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyIGW
+      RouteTableId: !Ref MyPublicRouteTable
+      
+
+
+
+
+
+
   # TODO: Create an ALB and target group (DO NOT add instances to target group)
   # TODO: Create an ASG and associate it with the target group
   MyInstance:
