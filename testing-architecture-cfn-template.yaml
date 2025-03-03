@@ -1,5 +1,7 @@
-# TODO: Setup Security group of isntances for only port 22 access
+# TODO: Setup Security group of instances for only port 22 access
 # TODO: Add public IP for instance (Since NOT auto assigned for instances in manually created VPCs)
+# TODO: Create parameter to set min/max/desired number of instances
+# TODO: Create an ALB and target group (DO NOT add instances to target group)
 # TODO: Split file into multiple (Have one for networking, another for instances, etc.)
 AWSTemplateFormatVersion: 2010-09-09
 Description: A YAML template file made by Ishaan Sharma.
@@ -12,7 +14,7 @@ Parameters:
     AllowedValues:
       - true
       - false
-    Default: "false"
+    Default: false
   # By default the ASG will use instances of the latest amazon linux
   LatestAMIId: 
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
@@ -33,6 +35,7 @@ Resources:
       # Gets the first AZ in the current region 
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
       VpcId: !Ref MyVPC
       Tags:
         - Key: Name
@@ -93,12 +96,28 @@ Resources:
       GatewayId: !Ref MyIGW
       RouteTableId: !Ref MyPublicRouteTable
 
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG limiting access to instances ONLY to port 22. SG made thru the cfn template.
+      GroupName: launch-wizard-cfn
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref MyVPC
+
   MyLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
         ImageId: !Ref LatestAMIId
         InstanceType: t2.micro
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            Groups: 
+              - !Ref MySecurityGroup
       LaunchTemplateName: launch-template-cfn-template
       VersionDescription: "1.0"
 
@@ -116,38 +135,6 @@ Resources:
         - !Ref MyPublicSubnet
 
 
-      
-
-
-
-
-
-
-  # TODO: Create an ALB and target group (DO NOT add instances to target group)
-  # TODO: Create an ASG and associate it with the target group
-  MyInstance:
-    Type: AWS::EC2::Instance
-    Condition: IsInstancesMade
-    Properties:
-      ImageId: ami-0c614dee691cbbf37
-      InstanceType: t2.micro
-      SecurityGroups: 
-          - !Ref MySecurityGroup
-      Tags: 
-        - Key: Name 
-          Value: TestInstance
-  MySecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Condition: IsInstancesMade
-    Properties:
-      GroupDescription: Security group made for the instance thru CFN.
-      GroupName: launch-wizard-cfn
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-
 # Conditions section
-Conditions:
-    IsInstancesMade: !Equals [!Ref EC2InstanceCreation, true]
+#Conditions:
+ #   IsInstancesMade: !Equals [!Ref EC2InstanceCreation, true]
