@@ -1,7 +1,6 @@
-# TODO: Setup an IGW w/the public subnet
-# TODO: Setup instances within created VPC/subnets
+# TODO: Setup Security group of isntances for only port 22 access
+# TODO: Add public IP for instance (Since NOT auto assigned for instances in manually created VPCs)
 # TODO: Split file into multiple (Have one for networking, another for instances, etc.)
-# TODO: Have option to name resources thru parameters?
 AWSTemplateFormatVersion: 2010-09-09
 Description: A YAML template file made by Ishaan Sharma.
 
@@ -13,7 +12,11 @@ Parameters:
     AllowedValues:
       - true
       - false
-    Default: false
+    Default: "false"
+  # By default the ASG will use instances of the latest amazon linux
+  LatestAMIId: 
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
 
 # Resources section
 Resources:
@@ -64,6 +67,7 @@ Resources:
       Tags:
         - Key: Name
           Value: igw-cfn-template
+
   MyPrivateSubnetAssociatedWithPrivateRouteTable:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -74,11 +78,13 @@ Resources:
     Properties:
       RouteTableId: !Ref MyPublicRouteTable
       SubnetId: !Ref MyPublicSubnet
+
   MyIGWAssociatedWithVPC:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref MyIGW
       VpcId: !Ref MyVPC
+
   # Creates a route for anyone connecting to the VPC to be directed thru the IGW to the public subnet
   MyIGWRouteToPublicSubnet:
     Type: AWS::EC2::Route
@@ -86,6 +92,30 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref MyIGW
       RouteTableId: !Ref MyPublicRouteTable
+
+  MyLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref LatestAMIId
+        InstanceType: t2.micro
+      LaunchTemplateName: launch-template-cfn-template
+      VersionDescription: "1.0"
+
+  MyASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: asg-cfn-template
+      LaunchTemplate: 
+        LaunchTemplateId: !Ref MyLaunchTemplate
+        Version: !GetAtt MyLaunchTemplate.LatestVersionNumber
+      DesiredCapacity: 1
+      MaxSize: 2
+      MinSize: 0
+      VPCZoneIdentifier:
+        - !Ref MyPublicSubnet
+
+
       
 
 
