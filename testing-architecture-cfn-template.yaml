@@ -1,5 +1,6 @@
-# TODO: Setup Security group of instances for only port 22 access
-# TODO: Add public IP for instance (Since NOT auto assigned for instances in manually created VPCs)
+# TODO: Setup NACLs to allow connections into a subnet
+# TODO: Check if instance has right dns resolver (Does not should be 169.254.169.253)
+  # Use https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-route53resolver-resolverendpoint.html#cfn-route53resolver-resolverendpoint-direction
 # TODO: Create parameter to set min/max/desired number of instances
 # TODO: Create an ALB and target group (DO NOT add instances to target group)
 # TODO: Split file into multiple (Have one for networking, another for instances, etc.)
@@ -18,7 +19,7 @@ Parameters:
   # By default the ASG will use instances of the latest amazon linux
   LatestAMIId: 
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-x86_64"
+    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 
 # Resources section
 Resources:
@@ -64,6 +65,36 @@ Resources:
       Tags:
         - Key: Name
           Value: private-route-table
+  MyNACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: nacl-route-table
+  MyNACLInboundEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      Egress: false
+      CidrBlock: 0.0.0.0/0
+      NetworkAclId: !Ref MyNACL
+      # Allow anything into the subnet if connecting on ONLY port 22
+      PortRange:
+        From: 22
+        To: 22
+      Protocol: 6
+      RuleAction: "allow"
+      RuleNumber: 100
+  MyNACLOutboundEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      Egress: true
+      CidrBlock: 0.0.0.0/0
+      NetworkAclId: !Ref MyNACL
+      # Allow an outbound response from the NACL to the requester on any ephemeral port
+      Protocol: -1
+      RuleAction: "allow"
+      RuleNumber: 100
   MyIGW:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -71,23 +102,28 @@ Resources:
         - Key: Name
           Value: igw-cfn-template
 
-  MyPrivateSubnetAssociatedWithPrivateRouteTable:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref MyPrivateRouteTable
-      SubnetId: !Ref MyPrivateSubnet
-  MyPublicSubnetAssociatedWithPublicRouteTable:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref MyPublicRouteTable
-      SubnetId: !Ref MyPublicSubnet
-
   MyIGWAssociatedWithVPC:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref MyIGW
       VpcId: !Ref MyVPC
-
+  MyPublicSubnetAssociatedWithNACL:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref MyNACL
+      SubnetId: !Ref MyPublicSubnet
+  MyPublicSubnetAssociatedWithPublicRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPublicRouteTable
+      SubnetId: !Ref MyPublicSubnet
+  MyPrivateSubnetAssociatedWithPrivateRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MyPrivateRouteTable
+      SubnetId: !Ref MyPrivateSubnet
+  
+  
   # Creates a route for anyone connecting to the VPC to be directed thru the IGW to the public subnet
   MyIGWRouteToPublicSubnet:
     Type: AWS::EC2::Route
@@ -101,6 +137,9 @@ Resources:
     Properties:
       GroupDescription: SG limiting access to instances ONLY to port 22. SG made thru the cfn template.
       GroupName: launch-wizard-cfn
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
