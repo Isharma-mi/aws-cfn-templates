@@ -1,0 +1,57 @@
+# TODO: Create parameter to set min/max/desired number of instances
+# TODO: Create an ALB and target group (DO NOT add instances to target group)
+AWSTemplateFormatVersion: "2010-09-09"
+Description: EC2 related components YAML file for AWS Architecture by Ishaan Sharma.
+
+Parameters:
+  NetworkStackName:
+    Description: "Name of the stack containing the network resources."
+    Type: String
+    Default: NetworkStack
+  LatestAMIID:
+    Description: "Latest Amazon linux AMI (NOTE: NOT Minimal)"
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+
+Resources:
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "SG limiting access to instances ONLY to port 22. SG made thru the cfn template."
+      GroupName: launch-wizard-cfn
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      VpcId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-VPCID"
+
+  MyLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref LatestAMIID
+        InstanceType: t2.micro
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            Groups: 
+              - !Ref MySecurityGroup
+      LaunchTemplateName: launch-template-cfn-template
+      VersionDescription: "1.0"
+
+  MyASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: asg-cfn-template
+      LaunchTemplate: 
+        LaunchTemplateId: !Ref MyLaunchTemplate
+        Version: !GetAtt MyLaunchTemplate.LatestVersionNumber
+      DesiredCapacity: 1
+      MaxSize: 2
+      MinSize: 0
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-PublicSubnetID"

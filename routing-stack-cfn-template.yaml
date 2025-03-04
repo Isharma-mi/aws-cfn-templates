@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Routing of network setup YAML file for AWS Architecture by Ishaan Sharma.
+Description: "Routing of network setup YAML file for AWS Architecture by Ishaan Sharma."
 
 Parameters:
   NetworkStackName:
-    Description: Name of the stack containing the network resources.
+    Description: "Name of the stack containing the network resources."
     Type: String
     Default: NetworkStack
 

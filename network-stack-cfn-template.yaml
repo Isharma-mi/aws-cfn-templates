@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Network Setup YAML file for AWS Architecture by Ishaan Sharma.
+Description: "Network Setup YAML file for AWS Architecture by Ishaan Sharma."
 
 Resources:
   MyVPC:
