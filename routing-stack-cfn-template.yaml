@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Routing of network setup YAML file for AWS Architecture by Ishaan Sharma.
+
+Parameters:
+  NetworkStackName:
+    Description: Name of the stack containing the network resources.
+    Type: String
+    Default: NetworkStack
+
+Resources:
+  # NACL routing setup
+  # Allows for SSH connection into subnet
+  MyNACLSSHInboundEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      Egress: false
+      CidrBlock: 0.0.0.0/0
+      NetworkAclId:
+        Fn::ImportValue: !Sub "${NetworkStackName}-NACLID"
+      PortRange:
+        From: 22
+        To: 22
+      Protocol: 6
+      RuleAction: "allow"
+      RuleNumber: 100
+  # Allows any ICMP connection into the subnet (Ex: For ping cmd to send data back in)
+  MyNACLICMPInboundEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      Egress: false
+      CidrBlock: 0.0.0.0/0
+      Icmp:
+        Code: -1
+        Type: -1
+      NetworkAclId:
+        Fn::ImportValue: !Sub "${NetworkStackName}-NACLID"
+      Protocol: 1
+      RuleAction: "allow"
+      RuleNumber: 200
+  # Allows for instances to send responses back to ephemeral ports
+  MyNACLEphemeralPortsOutboundEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      Egress: true
+      CidrBlock: 0.0.0.0/0
+      NetworkAclId:
+        Fn::ImportValue: !Sub "${NetworkStackName}-NACLID"
+      PortRange:
+        From: 1024
+        To: 65535
+      Protocol: 6
+      RuleAction: "allow"
+      RuleNumber: 100
+  # Allows any ICMP connection out of the subnet (Ex: FOr ping cmd to ping something external to VPC)
+  MyNACLICMPOutboundEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      Egress: true
+      CidrBlock: 0.0.0.0/0
+      Icmp: 
+        Code: -1
+        Type: -1
+      NetworkAclId:
+        Fn::ImportValue: !Sub "${NetworkStackName}-NACLID"
+      Protocol: 1
+      RuleAction: "allow"
+      RuleNumber: 200
+  
+  # Associates IGW with the VPC
+  MyIGWAssociatedWithVPC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-IGWID"
+      VpcId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-VPCID"
+  # Creates a route for anyone connecting to the VPC to be directed thru the IGW to the public subnet
+  MyIGWRouteToPublicSubnet:
+    Type: AWS::EC2::Route
+    DependsOn: MyIGWAssociatedWithVPC
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-IGWID"
+      RouteTableId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-PublicRouteTableID"
+
+  # Associating Subnets with Route tables
+  MyPublicSubnetAssociatedWithPublicRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-PublicRouteTableID"
+      SubnetId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-PublicSubnetID"
+  MyPrivateSubnetAssociatedWithPrivateRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-PrivateRouteTableID"
+      SubnetId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-PrivateSubnetID"
+
+  # Associating public subnet with NACL
+  MyPublicSubnetAssociatedWithNACL:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-NACLID"
+      SubnetId: 
+        Fn::ImportValue: !Sub "${NetworkStackName}-PublicSubnetID"

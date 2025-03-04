@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Network Setup YAML file for AWS Architecture by Ishaan Sharma.
+
+Resources:
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: vpc-us-east-1-cfn-testing-stack
+  MyPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      # Gets the first AZ in the current region 
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: public-subnet-a
+  MyPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      # Gets the first AZ in the current region (Same as public subnet)
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.16.0/20
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: private-subnet-a
+  MyPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: public-route-table
+  MyPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: private-route-table
+  MyNACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: nacl-route-table
+  MyIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: igw-cfn-template
+
+Outputs:
+  IGWID:
+    Value: !Ref MyIGW
+    Export:
+      Name: !Sub "${AWS::StackName}-IGWID"
+  NACLID:
+    Value: !Ref MyNACL
+    Export:
+      Name: !Sub "${AWS::StackName}-NACLID"
+  PublicRouteTableID:
+    Value: !Ref MyPublicRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicRouteTableID"
+  PrivateRouteTableID:
+    Value: !Ref MyPrivateRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateRouteTableID"
+  PublicSubnetID:
+    Value: !Ref MyPublicSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetID"
+  PrivateSubnetID:
+    Value: !Ref MyPrivateSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetID"
+  VPCID:
+    Value: !Ref MyVPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VPCID"
