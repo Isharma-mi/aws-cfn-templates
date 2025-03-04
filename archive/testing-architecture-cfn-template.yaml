@@ -1,3 +1,4 @@
+# ARCHIVED SINCE CODE IS SPLIT UP IN MULTIPLE FILES NOW
 # TODO: Setup parameters to allow for specific connections?
 # TODO: Create parameter to set min/max/desired number of instances
 # TODO: Create an ALB and target group (DO NOT add instances to target group)
