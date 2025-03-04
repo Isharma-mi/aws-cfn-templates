@@ -1,6 +1,4 @@
-# TODO: Setup NACLs to allow connections into a subnet
-# TODO: Check if instance has right dns resolver (Does not should be 169.254.169.253)
-  # Use https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-route53resolver-resolverendpoint.html#cfn-route53resolver-resolverendpoint-direction
+# TODO: Setup parameters to allow for specific connections?
 # TODO: Create parameter to set min/max/desired number of instances
 # TODO: Create an ALB and target group (DO NOT add instances to target group)
 # TODO: Split file into multiple (Have one for networking, another for instances, etc.)
@@ -72,29 +70,58 @@ Resources:
       Tags:
         - Key: Name
           Value: nacl-route-table
-  MyNACLInboundEntry:
+  # Allows for SSH connection into subnet
+  MyNACLSSHInboundEntry:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
       Egress: false
       CidrBlock: 0.0.0.0/0
       NetworkAclId: !Ref MyNACL
-      # Allow anything into the subnet if connecting on ONLY port 22
       PortRange:
         From: 22
         To: 22
       Protocol: 6
       RuleAction: "allow"
       RuleNumber: 100
-  MyNACLOutboundEntry:
+  # Allows any ICMP connection into the subnet (Ex: For ping cmd to send data back in)
+  MyNACLICMPInboundEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      Egress: false
+      CidrBlock: 0.0.0.0/0
+      Icmp:
+        Code: -1
+        Type: -1
+      NetworkAclId: !Ref MyNACL
+      Protocol: 1
+      RuleAction: "allow"
+      RuleNumber: 200
+  # Allows for instances to send responses back to ephemeral ports
+  MyNACLEphemeralPortsOutboundEntry:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
       Egress: true
       CidrBlock: 0.0.0.0/0
       NetworkAclId: !Ref MyNACL
-      # Allow an outbound response from the NACL to the requester on any ephemeral port
-      Protocol: -1
+      PortRange:
+        From: 1024
+        To: 65535
+      Protocol: 6
       RuleAction: "allow"
       RuleNumber: 100
+  # Allows any ICMP connection out of the subnet (Ex: FOr ping cmd to ping something external to VPC)
+  MyNACLICMPOutboundEntry:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      Egress: true
+      CidrBlock: 0.0.0.0/0
+      Icmp: 
+        Code: -1
+        Type: -1
+      NetworkAclId: !Ref MyNACL
+      Protocol: 1
+      RuleAction: "allow"
+      RuleNumber: 200
   MyIGW:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -131,6 +158,15 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref MyIGW
       RouteTableId: !Ref MyPublicRouteTable
+
+  # Specifies the outbound resolver endpoint (Uses AWS for outbound connections)
+  #MyOutboundResolverEndpoint:
+   # Type: AWS:::Route53Resolver::ResolverEndpoint
+    #Properties:
+     # Direction: OUTBOUND
+      #IpAddresses:
+       # - SubnetId: !Ref MyPublicSubnet
+
 
   MySecurityGroup:
     Type: AWS::EC2::SecurityGroup
